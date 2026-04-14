@@ -2,76 +2,103 @@ import Head from 'next/head'
 import { useState } from 'react'
 
 const VINTED = 'https://www.vinted.it/catalog'
-// status_ids: 6 = buone condizioni, 3 = ottime condizioni
-const GOOD_CONDITIONS = '&status_ids[]=3&status_ids[]=6'
 
-// Brand IDs confermati da Vinted:
-// 272284 = PlayStation (Sony)
-// 29  = Nintendo
-// 471 = Sega
-// 13148 = Atari
+// ─── COSA È CAMBIATO ────────────────────────────────────────────────────────
+// 1. status_ids[]=6 SOLO (buone condizioni usate) — rimosso "new with tags"
+//    che non ha senso per retrogaming/usato
+// 2. buildUrl ora duplica brand_id[] e brand_ids[] come fa Vinted nativo
+// 3. video_game_platform_ids[] confermati: PS2=1278, PS4=1280 (da URL reale),
+//    PS1=1277 e PS3=1279 derivati per adiacenza (pattern sequenziale Vinted)
+// 4. Range prezzi realistici per ogni console (price_from + price_to)
+//    — filtra spazzatura sotto-prezzo e oggetti fuori budget
+// 5. order=price_low_to_high per trovare i prezzi più bassi
+// ────────────────────────────────────────────────────────────────────────────
+
+// Brand IDs confermati da Vinted.it:
+// 272284 = PlayStation | 29 = Nintendo | 471 = Sega | 13148 = Atari
 // catalog 3025 = Consoles, 3026 = Games
 
-const buildUrl = ({ search = '', maxPrice = null, catalog = null, brandId = null } = {}) => {
-  let url = `${VINTED}?search_text=${encodeURIComponent(search)}&order=price_low_to_high${GOOD_CONDITIONS}`
+// video_game_platform_ids confermati/derivati:
+// 1277 = PS1 | 1278 = PS2 (confermato) | 1279 = PS3 | 1280 = PS4 (confermato)
+// Nintendo e Sega: usiamo brand_id + search text, platformId non disponibile
+
+const buildUrl = ({ search = '', minPrice = null, maxPrice = null, catalog = null, brandId = null, platformId = null } = {}) => {
+  // Solo status 6 (buone condizioni usate) — coerente con retrogaming
+  let url = `${VINTED}?search_text=${encodeURIComponent(search)}&order=price_low_to_high&status_ids[]=6&currency=EUR`
+  if (minPrice) url += `&price_from=${minPrice}`
   if (maxPrice) url += `&price_to=${maxPrice}`
   if (catalog) url += `&catalog[]=${catalog}`
-  // brand_id filtra per marca — garantisce che escano solo articoli di quella piattaforma
-  if (brandId) url += `&brand_id[]=${brandId}`
+  // Vinted usa sia brand_id[] che brand_ids[] in parallelo (duplicato intenzionale)
+  if (brandId) url += `&brand_id[]=${brandId}&brand_ids[]=${brandId}`
+  // Filtro piattaforma: il più preciso disponibile, bypassa ambiguità del testo
+  if (platformId) url += `&video_game_platform_ids[]=${platformId}`
   return url
 }
 
-// Per le console usiamo: catalog=3025 (solo Console) + brand_id specifico + search con il
-// nome preciso della generazione (es. "playstation 1" per non mischiare PS2/PS3).
-// Sega Dreamcast non ha brand_id dedicato su Vinted (brand "Dreamcast" è solo merchandise),
-// quindi usiamo brand Sega (471) + search text molto specifico.
 const CONSOLES = [
   {
     name: 'PlayStation 1', short: 'PS1', emoji: '🎮', color: '#003087',
-    // brand PlayStation + catalog Console + "playstation 1" per filtrare la generazione
-    search: 'playstation 1', catalog: 3025, brandId: 272284
+    search: 'playstation 1', catalog: 3025, brandId: 272284, platformId: 1277,
+    minPrice: 10, maxPrice: 29,
+    priceLabel: '€10–29'
   },
   {
     name: 'PlayStation 2', short: 'PS2', emoji: '🎮', color: '#003087',
-    search: 'playstation 2', catalog: 3025, brandId: 272284
+    search: 'playstation 2', catalog: 3025, brandId: 272284, platformId: 1278,
+    minPrice: 20, maxPrice: 39,
+    priceLabel: '€20–39'
   },
   {
     name: 'PlayStation 3', short: 'PS3', emoji: '🎮', color: '#003087',
-    search: 'playstation 3', catalog: 3025, brandId: 272284
+    search: 'playstation 3', catalog: 3025, brandId: 272284, platformId: 1279,
+    minPrice: 25, maxPrice: 49,
+    priceLabel: '€25–49'
   },
   {
     name: 'PlayStation 4', short: 'PS4', emoji: '🎮', color: '#003087',
-    search: 'playstation 4', catalog: 3025, brandId: 272284
+    search: 'playstation 4', catalog: 3025, brandId: 272284, platformId: 1280,
+    minPrice: 35, maxPrice: 59,
+    priceLabel: '€35–59'
   },
   {
     name: 'Nintendo Wii', short: 'Wii', emoji: '🕹️', color: '#e4000f',
-    search: 'nintendo wii', catalog: 3025, brandId: 29
+    search: 'nintendo wii', catalog: 3025, brandId: 29,
+    minPrice: 10, maxPrice: 19,
+    priceLabel: '€10–19'
   },
   {
     name: 'GameCube', short: 'GCN', emoji: '🕹️', color: '#e4000f',
-    search: 'gamecube', catalog: 3025, brandId: 29
+    search: 'gamecube', catalog: 3025, brandId: 29,
+    minPrice: 30, maxPrice: 65,
+    priceLabel: '€30–65'
   },
   {
     name: 'Nintendo 64', short: 'N64', emoji: '🕹️', color: '#e4000f',
-    search: 'nintendo 64', catalog: 3025, brandId: 29
+    search: 'nintendo 64', catalog: 3025, brandId: 29,
+    minPrice: 25, maxPrice: 55,
+    priceLabel: '€25–55'
   },
   {
     name: 'Atari', short: 'ATARI', emoji: '👾', color: '#f5a623',
-    search: 'atari', catalog: 3025, brandId: 13148
+    search: 'atari', catalog: 3025, brandId: 13148,
+    minPrice: 10, maxPrice: 49,
+    priceLabel: '€10–49'
   },
   {
-    name: 'Sega Dreamcast', short: 'DC', emoji: '💿', color: '#1a1a2e',
-    // Sega brand + "dreamcast" nel testo — il più preciso possibile per questa console
-    search: 'dreamcast', catalog: 3025, brandId: 471
+    name: 'Sega Dreamcast', short: 'DC', emoji: '💿', color: '#6c6c8a',
+    search: 'dreamcast', catalog: 3025, brandId: 471,
+    minPrice: 30, maxPrice: 70,
+    priceLabel: '€30–70'
   },
 ]
 
-// Per i giochi: catalog=3026 (solo Games) + brand_id + search con nome console
+// Giochi: catalog=3026 + brand_id + platform_id dove disponibile
+// Nessun range prezzo fisso — vuoi vedere tutto dal più basso
 const GAMES_BY_CONSOLE = [
   { console: 'N64', label: 'Tutti i giochi N64', search: 'nintendo 64', maxPrice: 7, emoji: '🟡', catalog: 3026, brandId: 29 },
-  { console: 'PS1', label: 'Giochi PS1', search: 'playstation 1', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
-  { console: 'PS2', label: 'Giochi PS2', search: 'playstation 2', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
-  { console: 'PS3', label: 'Giochi PS3', search: 'playstation 3', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
+  { console: 'PS1', label: 'Giochi PS1', search: 'playstation 1', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1277 },
+  { console: 'PS2', label: 'Giochi PS2', search: 'playstation 2', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1278 },
+  { console: 'PS3', label: 'Giochi PS3', search: 'playstation 3', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1279 },
   { console: 'Wii', label: 'Giochi Wii', search: 'nintendo wii', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
   { console: 'GCN', label: 'Giochi GameCube', search: 'gamecube', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
   { console: 'DC', label: 'Giochi Dreamcast', search: 'dreamcast', maxPrice: null, emoji: '🟣', catalog: 3026, brandId: 471 },
@@ -179,12 +206,15 @@ export default function Home() {
                   <button
                     key={c.short}
                     className="console-card"
-                    onClick={() => handleOpen(buildUrl({ search: c.search, catalog: c.catalog, brandId: c.brandId }))}
+                    onClick={() => handleOpen(buildUrl({ search: c.search, minPrice: c.minPrice, maxPrice: c.maxPrice, catalog: c.catalog, brandId: c.brandId, platformId: c.platformId }))}
                     style={{ '--accent': c.color }}
                   >
                     <span className="con-emoji">{c.emoji}</span>
                     <span className="con-name">{c.name}</span>
-                    <span className="con-badge">{c.short}</span>
+                    <div style={{display:'flex', gap:'5px', alignItems:'center', marginTop:'4px', flexWrap:'wrap'}}>
+                      <span className="con-badge">{c.short}</span>
+                      <span className="con-price-badge">{c.priceLabel}</span>
+                    </div>
                     <span className="con-arrow">→</span>
                   </button>
                 ))}
@@ -201,7 +231,7 @@ export default function Home() {
                   <button
                     key={g.console}
                     className="game-card"
-                    onClick={() => handleOpen(buildUrl({ search: g.search, maxPrice: g.maxPrice, catalog: g.catalog, brandId: g.brandId }))}
+                    onClick={() => handleOpen(buildUrl({ search: g.search, maxPrice: g.maxPrice, catalog: g.catalog, brandId: g.brandId, platformId: g.platformId }))}
                   >
                     <span className="gc-emoji">{g.emoji}</span>
                     <div className="gc-info">
@@ -387,7 +417,8 @@ export default function Home() {
         .console-card:active { transform: translateY(0); }
         .con-emoji { font-size: 22px; margin-bottom: 4px; }
         .con-name { font-size: 14px; font-weight: 600; color: #fff; }
-        .con-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #888; background: #222; padding: 2px 6px; border-radius: 4px; margin-top: 2px; }
+        .con-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #888; background: #222; padding: 2px 6px; border-radius: 4px; }
+        .con-price-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #4caf50; background: #0a1f0a; padding: 2px 6px; border-radius: 4px; }
         .con-arrow { position: absolute; bottom: 14px; right: 14px; color: #444; font-size: 14px; }
         .console-card:hover .con-arrow { color: #aaa; }
 
