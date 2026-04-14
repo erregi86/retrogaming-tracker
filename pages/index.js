@@ -3,34 +3,12 @@ import { useState } from 'react'
 
 const VINTED = 'https://www.vinted.it/catalog'
 
-// ─── COSA È CAMBIATO ────────────────────────────────────────────────────────
-// 1. status_ids[]=6 SOLO (buone condizioni usate) — rimosso "new with tags"
-//    che non ha senso per retrogaming/usato
-// 2. buildUrl ora duplica brand_id[] e brand_ids[] come fa Vinted nativo
-// 3. video_game_platform_ids[] confermati: PS2=1278, PS4=1280 (da URL reale),
-//    PS1=1277 e PS3=1279 derivati per adiacenza (pattern sequenziale Vinted)
-// 4. Range prezzi realistici per ogni console (price_from + price_to)
-//    — filtra spazzatura sotto-prezzo e oggetti fuori budget
-// 5. order=price_low_to_high per trovare i prezzi più bassi
-// ────────────────────────────────────────────────────────────────────────────
-
-// Brand IDs confermati da Vinted.it:
-// 272284 = PlayStation | 29 = Nintendo | 471 = Sega | 13148 = Atari
-// catalog 3025 = Consoles, 3026 = Games
-
-// video_game_platform_ids confermati/derivati:
-// 1277 = PS1 | 1278 = PS2 (confermato) | 1279 = PS3 | 1280 = PS4 (confermato)
-// Nintendo e Sega: usiamo brand_id + search text, platformId non disponibile
-
 const buildUrl = ({ search = '', minPrice = null, maxPrice = null, catalog = null, brandId = null, platformId = null } = {}) => {
-  // Solo status 6 (buone condizioni usate) — coerente con retrogaming
   let url = `${VINTED}?search_text=${encodeURIComponent(search)}&order=price_low_to_high&status_ids[]=6&currency=EUR`
   if (minPrice) url += `&price_from=${minPrice}`
   if (maxPrice) url += `&price_to=${maxPrice}`
   if (catalog) url += `&catalog[]=${catalog}`
-  // Vinted usa sia brand_id[] che brand_ids[] in parallelo (duplicato intenzionale)
   if (brandId) url += `&brand_id[]=${brandId}&brand_ids[]=${brandId}`
-  // Filtro piattaforma: il più preciso disponibile, bypassa ambiguità del testo
   if (platformId) url += `&video_game_platform_ids[]=${platformId}`
   return url
 }
@@ -38,108 +16,233 @@ const buildUrl = ({ search = '', minPrice = null, maxPrice = null, catalog = nul
 const CONSOLES = [
   {
     name: 'PlayStation 1', short: 'PS1', emoji: '🎮', color: '#003087',
-    search: 'playstation 1', catalog: 3025, brandId: 272284, platformId: 1277,
-    minPrice: 10, maxPrice: 29,
-    priceLabel: '€10–29'
+    catalog: 3025, brandId: 272284, platformId: 1277,
+    variants: [
+      { label: 'Fat (SCPH-100x)', search: 'playstation 1 fat', priceMin: 10, priceMax: 25 },
+      { label: 'PSOne (slim)', search: 'psone slim', priceMin: 15, priceMax: 29 },
+    ]
   },
   {
     name: 'PlayStation 2', short: 'PS2', emoji: '🎮', color: '#003087',
-    search: 'playstation 2', catalog: 3025, brandId: 272284, platformId: 1278,
-    minPrice: 20, maxPrice: 39,
-    priceLabel: '€20–39'
+    catalog: 3025, brandId: 272284, platformId: 1278,
+    variants: [
+      { label: 'Fat (50000–39000)', search: 'playstation 2 fat', priceMin: 20, priceMax: 39 },
+      { label: 'Slim (70000–90000)', search: 'playstation 2 slim', priceMin: 20, priceMax: 35 },
+    ]
   },
   {
     name: 'PlayStation 3', short: 'PS3', emoji: '🎮', color: '#003087',
-    search: 'playstation 3', catalog: 3025, brandId: 272284, platformId: 1279,
-    minPrice: 25, maxPrice: 49,
-    priceLabel: '€25–49'
+    catalog: 3025, brandId: 272284, platformId: 1279,
+    variants: [
+      { label: 'Fat (60/80GB)', search: 'playstation 3 fat 60gb 80gb', priceMin: 30, priceMax: 55 },
+      { label: 'Slim (120/320GB)', search: 'playstation 3 slim', priceMin: 25, priceMax: 45 },
+      { label: 'Super Slim', search: 'playstation 3 super slim', priceMin: 25, priceMax: 49 },
+    ]
   },
   {
     name: 'PlayStation 4', short: 'PS4', emoji: '🎮', color: '#003087',
-    search: 'playstation 4', catalog: 3025, brandId: 272284, platformId: 1280,
-    minPrice: 35, maxPrice: 59,
-    priceLabel: '€35–59'
+    catalog: 3025, brandId: 272284, platformId: 1280,
+    variants: [
+      { label: 'Fat 500GB', search: 'playstation 4 fat 500gb', priceMin: 35, priceMax: 55 },
+      { label: 'Fat 1TB', search: 'playstation 4 fat 1tb', priceMin: 40, priceMax: 59 },
+      { label: 'Slim 500GB', search: 'playstation 4 slim 500gb', priceMin: 38, priceMax: 55 },
+      { label: 'Slim 1TB', search: 'playstation 4 slim 1tb', priceMin: 42, priceMax: 59 },
+      { label: 'Pro 1TB', search: 'playstation 4 pro 1tb', priceMin: 55, priceMax: 90 },
+    ]
   },
   {
     name: 'Nintendo Wii', short: 'Wii', emoji: '🕹️', color: '#e4000f',
-    search: 'nintendo wii', catalog: 3025, brandId: 29,
-    minPrice: 10, maxPrice: 19,
-    priceLabel: '€10–19'
-  },
-  {
-    name: 'GameCube', short: 'GCN', emoji: '🕹️', color: '#e4000f',
-    search: 'gamecube', catalog: 3025, brandId: 29,
-    minPrice: 30, maxPrice: 65,
-    priceLabel: '€30–65'
+    catalog: 3025, brandId: 29,
+    variants: [
+      { label: 'Wii (bianca)', search: 'nintendo wii bianco', priceMin: 10, priceMax: 19 },
+      { label: 'Wii Mini (rossa)', search: 'nintendo wii mini rosso', priceMin: 8, priceMax: 15 },
+    ]
   },
   {
     name: 'Nintendo 64', short: 'N64', emoji: '🕹️', color: '#e4000f',
-    search: 'nintendo 64', catalog: 3025, brandId: 29,
-    minPrice: 25, maxPrice: 55,
-    priceLabel: '€25–55'
+    catalog: 3025, brandId: 29,
+    variants: [
+      { label: 'Grigia (standard)', search: 'nintendo 64 grigio', priceMin: 25, priceMax: 55 },
+      { label: 'Nera (limited)', search: 'nintendo 64 nero', priceMin: 30, priceMax: 60 },
+    ]
   },
   {
     name: 'Atari', short: 'ATARI', emoji: '👾', color: '#f5a623',
-    search: 'atari', catalog: 3025, brandId: 13148,
-    minPrice: 10, maxPrice: 49,
-    priceLabel: '€10–49'
+    catalog: 3025, brandId: 13148,
+    variants: [
+      { label: '2600', search: 'atari 2600', priceMin: 10, priceMax: 35 },
+      { label: '7800', search: 'atari 7800', priceMin: 15, priceMax: 45 },
+      { label: 'Jaguar', search: 'atari jaguar', priceMin: 30, priceMax: 80 },
+    ]
   },
   {
     name: 'Sega Dreamcast', short: 'DC', emoji: '💿', color: '#6c6c8a',
-    search: 'dreamcast', catalog: 3025, brandId: 471,
-    minPrice: 30, maxPrice: 70,
-    priceLabel: '€30–70'
+    catalog: 3025, brandId: 471,
+    variants: [
+      { label: 'Standard (bianca)', search: 'dreamcast bianco', priceMin: 30, priceMax: 65 },
+      { label: 'Nera (Sega Sports)', search: 'dreamcast nero sport', priceMin: 40, priceMax: 70 },
+    ]
   },
 ]
 
-// Giochi: catalog=3026 + brand_id + platform_id dove disponibile
-// Nessun range prezzo fisso — vuoi vedere tutto dal più basso
+const GAMECUBE = {
+  name: 'GameCube', short: 'GCN', emoji: '🕹️', color: '#e4000f',
+  search: 'nintendo gamecube', catalog: 3025, brandId: 29,
+  priceMin: 35, priceMax: 70,
+}
+
 const GAMES_BY_CONSOLE = [
-  { console: 'N64', label: 'Tutti i giochi N64', search: 'nintendo 64', maxPrice: 7, emoji: '🟡', catalog: 3026, brandId: 29 },
-  { console: 'PS1', label: 'Giochi PS1', search: 'playstation 1', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1277 },
-  { console: 'PS2', label: 'Giochi PS2', search: 'playstation 2', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1278 },
-  { console: 'PS3', label: 'Giochi PS3', search: 'playstation 3', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1279 },
-  { console: 'Wii', label: 'Giochi Wii', search: 'nintendo wii', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
-  { console: 'GCN', label: 'Giochi GameCube', search: 'gamecube', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
-  { console: 'DC', label: 'Giochi Dreamcast', search: 'dreamcast', maxPrice: null, emoji: '🟣', catalog: 3026, brandId: 471 },
-  { console: 'ATARI', label: 'Giochi Atari', search: 'atari', maxPrice: null, emoji: '🟠', catalog: 3026, brandId: 13148 },
+  { label: 'N64 — tutti', search: 'nintendo 64', maxPrice: 7, emoji: '🟡', catalog: 3026, brandId: 29 },
+  { label: 'PS1', search: 'playstation 1', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1277 },
+  { label: 'PS2', search: 'playstation 2', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1278 },
+  { label: 'PS3', search: 'playstation 3', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284, platformId: 1279 },
+  { label: 'Wii', search: 'nintendo wii', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
+  { label: 'GameCube', search: 'gamecube', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
+  { label: 'Dreamcast', search: 'dreamcast', maxPrice: null, emoji: '🟣', catalog: 3026, brandId: 471 },
+  { label: 'Atari', search: 'atari', maxPrice: null, emoji: '🟠', catalog: 3026, brandId: 13148 },
+]
+
+const IMPERDIBILI = [
+  { title: 'FIFA (qualsiasi anno) PS2', search: 'fifa ps2', console: 'PS2', platformId: 1278, brandId: 272284 },
+  { title: 'Need for Speed PS2', search: 'need for speed ps2', console: 'PS2', platformId: 1278, brandId: 272284 },
+  { title: 'GTA San Andreas PS2', search: 'gta san andreas ps2', console: 'PS2', platformId: 1278, brandId: 272284 },
+  { title: 'Gran Turismo 3/4 PS2', search: 'gran turismo ps2', console: 'PS2', platformId: 1278, brandId: 272284 },
+  { title: 'Crash Bandicoot PS1', search: 'crash bandicoot ps1', console: 'PS1', platformId: 1277, brandId: 272284 },
+  { title: 'Spyro the Dragon PS1', search: 'spyro ps1', console: 'PS1', platformId: 1277, brandId: 272284 },
+  { title: 'Tekken 3 PS1', search: 'tekken 3 ps1', console: 'PS1', platformId: 1277, brandId: 272284 },
+  { title: 'Wii Sports', search: 'wii sports nintendo', console: 'Wii', brandId: 29 },
+  { title: 'Mario Kart Wii', search: 'mario kart wii', console: 'Wii', brandId: 29 },
+  { title: 'Just Dance Wii (qualsiasi)', search: 'just dance wii', console: 'Wii', brandId: 29 },
+  { title: 'Sonic Adventure Dreamcast', search: 'sonic adventure dreamcast', console: 'DC', brandId: 471 },
+  { title: 'Soul Calibur Dreamcast', search: 'soul calibur dreamcast', console: 'DC', brandId: 471 },
+  { title: 'Atari — cartucce varie', search: 'atari cartuccia gioco', console: 'ATARI', brandId: 13148 },
+  { title: 'Super Smash Bros N64', search: 'super smash bros nintendo 64', console: 'N64', brandId: 29 },
+  { title: 'Pokémon Stadium N64', search: 'pokemon stadium nintendo 64', console: 'N64', brandId: 29 },
 ]
 
 const N64_TITLES = [
-  { title: 'Super Mario 64', search: 'super mario 64 n64 cartuccia' },
-  { title: 'Zelda Ocarina of Time', search: 'zelda ocarina time n64 cartuccia' },
-  { title: 'Zelda Majora\'s Mask', search: 'zelda majora mask n64 cartuccia' },
-  { title: 'Mario Kart 64', search: 'mario kart 64 n64 cartuccia' },
-  { title: 'GoldenEye 007', search: 'goldeneye 007 n64 cartuccia' },
-  { title: 'Banjo-Kazooie', search: 'banjo kazooie n64 cartuccia' },
-  { title: 'Pokémon Snap', search: 'pokemon snap n64 cartuccia' },
-  { title: 'Star Fox 64', search: 'star fox 64 n64 cartuccia' },
-  { title: 'Donkey Kong 64', search: 'donkey kong 64 n64 cartuccia' },
-  { title: 'Perfect Dark', search: 'perfect dark n64 cartuccia' },
+  { title: 'Super Mario 64', search: 'super mario 64 nintendo 64' },
+  { title: 'Zelda Ocarina of Time', search: 'zelda ocarina time nintendo 64' },
+  { title: "Zelda Majora's Mask", search: 'zelda majora mask nintendo 64' },
+  { title: 'Mario Kart 64', search: 'mario kart 64 nintendo 64' },
+  { title: 'GoldenEye 007', search: 'goldeneye 007 nintendo 64' },
+  { title: 'Banjo-Kazooie', search: 'banjo kazooie nintendo 64' },
+  { title: 'Pokémon Snap', search: 'pokemon snap nintendo 64' },
+  { title: 'Star Fox 64', search: 'star fox 64 nintendo 64' },
+  { title: 'Donkey Kong 64', search: 'donkey kong 64 nintendo 64' },
+  { title: 'Perfect Dark', search: 'perfect dark nintendo 64' },
 ]
 
 const COLLECTIBLES = [
   { label: 'Lotti retrogaming', desc: 'Bundle console + giochi misti', search: 'lotto retrogaming console giochi bundle', emoji: '📦' },
   { label: 'Controller vintage', desc: 'Joypad e paddle originali', search: 'controller joypad retro vintage console originale', emoji: '🕹️' },
-  { label: 'Memory card', desc: 'PS1, PS2, GameCube originali', search: 'memory card ps1 ps2 gamecube nintendo originale', emoji: '💾' },
+  { label: 'Memory card', desc: 'PS1, PS2, GameCube originali', search: 'memory card ps1 ps2 gamecube nintendo', emoji: '💾' },
   { label: 'Box & manuali', desc: 'Scatole originali con libretto', search: 'scatola box manuale gioco console originale', emoji: '📖' },
   { label: 'Merchandise', desc: 'Figure, gadget, oggetti rari', search: 'merchandise figure gadget retrogaming nintendo sega', emoji: '🏆' },
-  { label: 'Accessori rari', desc: 'Periferiche e cavi originali', search: 'accessori cavi periferiche retrogaming console originali', emoji: '🔌' },
+  { label: 'Accessori rari', desc: 'Periferiche e cavi originali', search: 'accessori cavi periferiche retrogaming console', emoji: '🔌' },
 ]
+
+function ConsoleCard({ console: c, onOpen }) {
+  const [selectedVariant, setSelectedVariant] = useState(0)
+  const variant = c.variants[selectedVariant]
+  const [priceMin, setPriceMin] = useState(variant.priceMin)
+  const [priceMax, setPriceMax] = useState(variant.priceMax)
+
+  const handleVariantChange = (idx) => {
+    const v = c.variants[idx]
+    setSelectedVariant(idx)
+    setPriceMin(v.priceMin)
+    setPriceMax(v.priceMax)
+  }
+
+  const go = () => onOpen(buildUrl({
+    search: variant.search,
+    minPrice: priceMin,
+    maxPrice: priceMax,
+    catalog: c.catalog,
+    brandId: c.brandId,
+    platformId: c.platformId,
+  }))
+
+  return (
+    <div className="ccard" style={{ '--accent': c.color }}>
+      <div className="ccard-top">
+        <span className="ccard-emoji">{c.emoji}</span>
+        <div className="ccard-titles">
+          <span className="ccard-name">{c.name}</span>
+          <span className="ccard-short">{c.short}</span>
+        </div>
+      </div>
+      <select
+        className="ccard-select"
+        value={selectedVariant}
+        onChange={e => handleVariantChange(Number(e.target.value))}
+      >
+        {c.variants.map((v, i) => (
+          <option key={i} value={i}>{v.label}</option>
+        ))}
+      </select>
+      <div className="ccard-price-row">
+        <div className="ccard-price-group">
+          <label className="ccard-price-label">Min <strong>€{priceMin}</strong></label>
+          <input type="range" min="0" max="150" step="1" value={priceMin} className="ccard-slider"
+            onChange={e => setPriceMin(Number(e.target.value))} />
+        </div>
+        <div className="ccard-price-group">
+          <label className="ccard-price-label">Max <strong>€{priceMax}</strong></label>
+          <input type="range" min="0" max="150" step="1" value={priceMax} className="ccard-slider"
+            onChange={e => setPriceMax(Number(e.target.value))} />
+        </div>
+      </div>
+      <button className="ccard-btn" onClick={go}>Cerca su Vinted →</button>
+    </div>
+  )
+}
+
+function GameCubeCard({ onOpen }) {
+  const c = GAMECUBE
+  const [priceMin, setPriceMin] = useState(c.priceMin)
+  const [priceMax, setPriceMax] = useState(c.priceMax)
+  const go = () => onOpen(buildUrl({ search: c.search, minPrice: priceMin, maxPrice: priceMax, catalog: c.catalog, brandId: c.brandId }))
+  return (
+    <div className="ccard" style={{ '--accent': c.color }}>
+      <div className="ccard-top">
+        <span className="ccard-emoji">{c.emoji}</span>
+        <div className="ccard-titles">
+          <span className="ccard-name">{c.name}</span>
+          <span className="ccard-short">{c.short}</span>
+        </div>
+      </div>
+      <div className="ccard-no-variant">Versione unica sul mercato italiano</div>
+      <div className="ccard-price-row">
+        <div className="ccard-price-group">
+          <label className="ccard-price-label">Min <strong>€{priceMin}</strong></label>
+          <input type="range" min="0" max="150" step="1" value={priceMin} className="ccard-slider"
+            onChange={e => setPriceMin(Number(e.target.value))} />
+        </div>
+        <div className="ccard-price-group">
+          <label className="ccard-price-label">Max <strong>€{priceMax}</strong></label>
+          <input type="range" min="0" max="150" step="1" value={priceMax} className="ccard-slider"
+            onChange={e => setPriceMax(Number(e.target.value))} />
+        </div>
+      </div>
+      <button className="ccard-btn" onClick={go}>Cerca su Vinted →</button>
+    </div>
+  )
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('consoles')
   const [n64Max, setN64Max] = useState(7)
   const [searchQuery, setSearchQuery] = useState('')
 
-  const handleOpen = (url) => {
-    window.open(url, '_blank', 'noopener,noreferrer')
-  }
+  const handleOpen = (url) => window.open(url, '_blank', 'noopener,noreferrer')
 
   const filteredConsoles = CONSOLES.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.short.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  const showGCN = !searchQuery || 'gamecube gcn'.includes(searchQuery.toLowerCase())
 
   return (
     <>
@@ -154,41 +257,34 @@ export default function Home() {
       </Head>
 
       <div className="app">
-        {/* Header */}
         <header className="header">
           <div className="header-inner">
             <div className="logo">
               <span className="logo-icon">👾</span>
               <div>
                 <h1 className="logo-title">Retrogaming Tracker</h1>
-                <p className="logo-sub">Prezzi più bassi su Vinted · Condizioni buone/ottime</p>
+                <p className="logo-sub">Prezzi bassi su Vinted · Solo usato in buone condizioni</p>
               </div>
             </div>
             <div className="search-wrap">
-              <input
-                className="global-search"
-                placeholder="Cerca console..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+              <input className="global-search" placeholder="Filtra console..."
+                value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
             </div>
           </div>
         </header>
 
-        {/* Tabs */}
         <div className="tabs-wrap">
           <div className="tabs">
             {[
               { id: 'consoles', label: '🖥️ Console' },
-              { id: 'games', label: '💾 Giochi' },
-              { id: 'n64', label: '🟡 N64 Titoli' },
+              { id: 'games',    label: '💾 Giochi' },
+              { id: 'imperdibili', label: '🔥 Imperdibili €1–2' },
+              { id: 'n64',     label: '🟡 N64 Titoli' },
               { id: 'collect', label: '🏆 Collezionismo' },
             ].map(tab => (
-              <button
-                key={tab.id}
+              <button key={tab.id}
                 className={`tab ${activeTab === tab.id ? 'tab-active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
+                onClick={() => setActiveTab(tab.id)}>
                 {tab.label}
               </button>
             ))}
@@ -197,42 +293,23 @@ export default function Home() {
 
         <main className="main">
 
-          {/* CONSOLES TAB */}
           {activeTab === 'consoles' && (
             <div className="section">
-              <p className="section-hint">Clicca su una console per aprire Vinted con la ricerca filtrata dal prezzo più basso</p>
+              <p className="section-hint">Scegli variante · regola range prezzo · clicca Cerca su Vinted</p>
               <div className="grid-consoles">
-                {filteredConsoles.map(c => (
-                  <button
-                    key={c.short}
-                    className="console-card"
-                    onClick={() => handleOpen(buildUrl({ search: c.search, minPrice: c.minPrice, maxPrice: c.maxPrice, catalog: c.catalog, brandId: c.brandId, platformId: c.platformId }))}
-                    style={{ '--accent': c.color }}
-                  >
-                    <span className="con-emoji">{c.emoji}</span>
-                    <span className="con-name">{c.name}</span>
-                    <div style={{display:'flex', gap:'5px', alignItems:'center', marginTop:'4px', flexWrap:'wrap'}}>
-                      <span className="con-badge">{c.short}</span>
-                      <span className="con-price-badge">{c.priceLabel}</span>
-                    </div>
-                    <span className="con-arrow">→</span>
-                  </button>
-                ))}
+                {filteredConsoles.map(c => <ConsoleCard key={c.short} console={c} onOpen={handleOpen} />)}
+                {showGCN && <GameCubeCard onOpen={handleOpen} />}
               </div>
             </div>
           )}
 
-          {/* GAMES TAB */}
           {activeTab === 'games' && (
             <div className="section">
-              <p className="section-hint">Tutti i giochi ordinati per prezzo crescente · solo condizioni buone e ottime</p>
+              <p className="section-hint">Tutti i giochi per console · dal prezzo più basso · solo usato buono</p>
               <div className="grid-games">
                 {GAMES_BY_CONSOLE.map(g => (
-                  <button
-                    key={g.console}
-                    className="game-card"
-                    onClick={() => handleOpen(buildUrl({ search: g.search, maxPrice: g.maxPrice, catalog: g.catalog, brandId: g.brandId, platformId: g.platformId }))}
-                  >
+                  <button key={g.label} className="game-card"
+                    onClick={() => handleOpen(buildUrl({ search: g.search, maxPrice: g.maxPrice, catalog: g.catalog, brandId: g.brandId, platformId: g.platformId }))}>
                     <span className="gc-emoji">{g.emoji}</span>
                     <div className="gc-info">
                       <span className="gc-label">{g.label}</span>
@@ -245,7 +322,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* N64 TITLES TAB */}
+          {activeTab === 'imperdibili' && (
+            <div className="section">
+              <p className="section-hint">Titoli da trovare tra €1 e €2 — rari a quel prezzo, ma esistono</p>
+              <div className="grid-games">
+                {IMPERDIBILI.map(g => (
+                  <button key={g.title} className="game-card"
+                    onClick={() => handleOpen(buildUrl({ search: g.search, minPrice: 1, maxPrice: 2, catalog: 3026, brandId: g.brandId, platformId: g.platformId }))}>
+                    <span className="gc-emoji">🔥</span>
+                    <div className="gc-info">
+                      <span className="gc-label">{g.title}</span>
+                      <span className="gc-console-badge">{g.console}</span>
+                    </div>
+                    <span className="gc-price imp-price">€1–2</span>
+                    <span className="gc-arrow">↗</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'n64' && (
             <div className="section">
               <div className="n64-controls">
@@ -258,36 +354,21 @@ export default function Home() {
                 </div>
                 <div className="price-filter">
                   <label className="price-label">Prezzo max: <strong>€{n64Max}</strong></label>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    value={n64Max}
-                    onChange={e => setN64Max(Number(e.target.value))}
-                    className="price-slider"
-                  />
-                  <div className="price-row">
-                    <span>€1</span>
-                    <span>€50</span>
-                  </div>
+                  <input type="range" min="1" max="50" step="1" value={n64Max}
+                    onChange={e => setN64Max(Number(e.target.value))} className="price-slider" />
+                  <div className="price-row"><span>€1</span><span>€50</span></div>
                 </div>
-                <button
-                  className="btn-all-n64"
-                  onClick={() => handleOpen(buildUrl({ search: 'nintendo 64', maxPrice: n64Max, catalog: 3026, brandId: 29 }))}
-                >
+                <button className="btn-all-n64"
+                  onClick={() => handleOpen(buildUrl({ search: 'nintendo 64', maxPrice: n64Max, catalog: 3026, brandId: 29 }))}>
                   🔍 Tutti i giochi N64 fino a €{n64Max} →
                 </button>
               </div>
-
               <div className="n64-grid">
                 {N64_TITLES.map(t => (
-                  <button
-                    key={t.title}
-                    className="n64-card"
-                    onClick={() => handleOpen(buildUrl({ search: t.search, maxPrice: n64Max, catalog: 3026, brandId: 29 }))}
-                  >
+                  <button key={t.title} className="n64-card"
+                    onClick={() => handleOpen(buildUrl({ search: t.search, maxPrice: n64Max, catalog: 3026, brandId: 29 }))}>
                     <span className="n64-card-title">{t.title}</span>
-                    <span className="n64-card-price">≤ €{n64Max}</span>
+                    <span className="n64-card-price">≤€{n64Max}</span>
                     <span className="n64-card-arrow">↗</span>
                   </button>
                 ))}
@@ -295,17 +376,13 @@ export default function Home() {
             </div>
           )}
 
-          {/* COLLECTIBLES TAB */}
           {activeTab === 'collect' && (
             <div className="section">
               <p className="section-hint">Oggetti da collezione, lotti e accessori originali</p>
               <div className="grid-collect">
                 {COLLECTIBLES.map(c => (
-                  <button
-                    key={c.label}
-                    className="collect-card"
-                    onClick={() => handleOpen(buildUrl({ search: c.search }))}
-                  >
+                  <button key={c.label} className="collect-card"
+                    onClick={() => handleOpen(buildUrl({ search: c.search }))}>
                     <span className="cc-emoji">{c.emoji}</span>
                     <div className="cc-info">
                       <span className="cc-label">{c.label}</span>
@@ -321,23 +398,15 @@ export default function Home() {
         </main>
 
         <footer className="footer">
-          <p>I link aprono Vinted con filtri: prezzo crescente · condizioni buone/ottime</p>
+          <p>Solo usato in buone condizioni · ordine prezzo crescente · vinted.it</p>
         </footer>
       </div>
 
       <style jsx global>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { font-size: 16px; }
-        body {
-          font-family: 'DM Sans', sans-serif;
-          background: #0d0d0d;
-          color: #f0f0f0;
-          min-height: 100vh;
-        }
+        body { font-family: 'DM Sans', sans-serif; background: #0d0d0d; color: #f0f0f0; min-height: 100vh; }
+        .app { max-width: 960px; margin: 0 auto; padding: 0 16px 60px; }
 
-        .app { max-width: 900px; margin: 0 auto; padding: 0 16px 60px; }
-
-        /* Header */
         .header { padding: 24px 0 16px; }
         .header-inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
         .logo { display: flex; align-items: center; gap: 12px; }
@@ -346,105 +415,82 @@ export default function Home() {
         .logo-sub { font-size: 12px; color: #888; margin-top: 2px; }
         .search-wrap { flex: 1; max-width: 260px; }
         .global-search {
-          width: 100%;
-          background: #1a1a1a;
-          border: 1px solid #2a2a2a;
-          border-radius: 8px;
-          padding: 9px 14px;
-          color: #f0f0f0;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px;
-          outline: none;
-          transition: border-color 0.2s;
+          width: 100%; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px;
+          padding: 9px 14px; color: #f0f0f0; font-family: 'DM Sans', sans-serif;
+          font-size: 14px; outline: none; transition: border-color 0.2s;
         }
         .global-search:focus { border-color: #555; }
         .global-search::placeholder { color: #555; }
 
-        /* Tabs */
         .tabs-wrap { overflow-x: auto; margin-bottom: 24px; }
-        .tabs { display: flex; gap: 4px; min-width: max-content; border-bottom: 1px solid #1e1e1e; padding-bottom: 0; }
+        .tabs { display: flex; gap: 4px; min-width: max-content; border-bottom: 1px solid #1e1e1e; }
         .tab {
-          background: none;
-          border: none;
-          border-bottom: 2px solid transparent;
-          color: #666;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px;
-          font-weight: 500;
-          padding: 10px 16px;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: color 0.2s, border-color 0.2s;
-          margin-bottom: -1px;
+          background: none; border: none; border-bottom: 2px solid transparent;
+          color: #666; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+          padding: 10px 16px; cursor: pointer; white-space: nowrap;
+          transition: color 0.2s, border-color 0.2s; margin-bottom: -1px;
         }
         .tab:hover { color: #ccc; }
         .tab-active { color: #fff; border-bottom-color: #e8ff2a; }
 
-        /* Section */
-        .section {}
         .section-hint { font-size: 13px; color: #666; margin-bottom: 20px; }
 
-        /* Console grid */
-        .grid-consoles {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-          gap: 10px;
+        /* Console cards */
+        .grid-consoles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .ccard {
+          background: #161616; border: 1px solid #222; border-radius: 14px;
+          padding: 16px; display: flex; flex-direction: column; gap: 10px;
+          position: relative; overflow: hidden;
         }
-        .console-card {
-          background: #161616;
-          border: 1px solid #222;
-          border-radius: 12px;
-          padding: 18px 16px;
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 4px;
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.15s, border-color 0.15s, transform 0.1s;
-          position: relative;
-          overflow: hidden;
+        .ccard::before {
+          content: ''; position: absolute; top: 0; left: 0; right: 0;
+          height: 3px; background: var(--accent); opacity: 0.8;
         }
-        .console-card::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; right: 0;
-          height: 3px;
-          background: var(--accent);
-          opacity: 0.7;
+        .ccard-top { display: flex; align-items: center; gap: 10px; }
+        .ccard-emoji { font-size: 24px; }
+        .ccard-titles { display: flex; flex-direction: column; }
+        .ccard-name { font-size: 14px; font-weight: 600; color: #fff; }
+        .ccard-short { font-family: 'Space Mono', monospace; font-size: 10px; color: #888; margin-top: 1px; }
+        .ccard-select {
+          width: 100%; background: #222; border: 1px solid #333; border-radius: 7px;
+          color: #e0e0e0; font-family: 'DM Sans', sans-serif; font-size: 12px;
+          padding: 7px 28px 7px 10px; outline: none; cursor: pointer; appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+          background-repeat: no-repeat; background-position: right 10px center;
         }
-        .console-card:hover { background: #1e1e1e; border-color: #333; transform: translateY(-2px); }
-        .console-card:active { transform: translateY(0); }
-        .con-emoji { font-size: 22px; margin-bottom: 4px; }
-        .con-name { font-size: 14px; font-weight: 600; color: #fff; }
-        .con-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #888; background: #222; padding: 2px 6px; border-radius: 4px; }
-        .con-price-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #4caf50; background: #0a1f0a; padding: 2px 6px; border-radius: 4px; }
-        .con-arrow { position: absolute; bottom: 14px; right: 14px; color: #444; font-size: 14px; }
-        .console-card:hover .con-arrow { color: #aaa; }
+        .ccard-select:focus { border-color: #555; }
+        .ccard-no-variant { font-size: 11px; color: #555; font-style: italic; padding: 2px 0; }
+        .ccard-price-row { display: flex; gap: 10px; }
+        .ccard-price-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .ccard-price-label { font-size: 11px; color: #888; }
+        .ccard-price-label strong { color: #e8ff2a; }
+        .ccard-slider { width: 100%; accent-color: #e8ff2a; cursor: pointer; }
+        .ccard-btn {
+          width: 100%; background: #1e1e1e; border: 1px solid #333; border-radius: 8px;
+          color: #e0e0e0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+          padding: 9px; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .ccard-btn:hover { background: #e8ff2a; color: #0d0d0d; border-color: #e8ff2a; }
+        .ccard-btn:active { opacity: 0.85; }
 
-        /* Games grid */
+        /* Games */
         .grid-games { display: flex; flex-direction: column; gap: 8px; }
         .game-card {
-          background: #161616;
-          border: 1px solid #222;
-          border-radius: 10px;
-          padding: 14px 18px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.15s, border-color 0.15s;
+          background: #161616; border: 1px solid #222; border-radius: 10px;
+          padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+          cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
         }
         .game-card:hover { background: #1e1e1e; border-color: #333; }
         .gc-emoji { font-size: 18px; flex-shrink: 0; }
-        .gc-info { flex: 1; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .gc-info { flex: 1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .gc-label { font-size: 14px; font-weight: 500; color: #f0f0f0; }
-        .gc-price { font-family: 'Space Mono', monospace; font-size: 11px; color: #4caf50; background: #0a1f0a; padding: 2px 8px; border-radius: 20px; }
+        .gc-console-badge { font-family: 'Space Mono', monospace; font-size: 10px; color: #888; background: #222; padding: 2px 6px; border-radius: 4px; }
+        .gc-price { font-family: 'Space Mono', monospace; font-size: 11px; color: #4caf50; background: #0a1f0a; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
+        .imp-price { color: #ff9f2a; background: #1f1200; }
         .gc-arrow { color: #555; font-size: 14px; flex-shrink: 0; }
         .game-card:hover .gc-arrow { color: #aaa; }
 
-        /* N64 section */
+        /* N64 */
         .n64-controls { background: #161616; border: 1px solid #222; border-radius: 14px; padding: 20px; margin-bottom: 20px; }
         .n64-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
         .n64-icon { font-size: 28px; }
@@ -453,45 +499,19 @@ export default function Home() {
         .price-filter { margin-bottom: 16px; }
         .price-label { display: block; font-size: 13px; color: #aaa; margin-bottom: 8px; }
         .price-label strong { color: #e8ff2a; }
-        .price-slider {
-          width: 100%;
-          accent-color: #e8ff2a;
-          cursor: pointer;
-        }
+        .price-slider { width: 100%; accent-color: #e8ff2a; cursor: pointer; }
         .price-row { display: flex; justify-content: space-between; font-size: 11px; color: #555; margin-top: 4px; }
         .btn-all-n64 {
-          width: 100%;
-          background: #e8ff2a;
-          color: #0d0d0d;
-          border: none;
-          border-radius: 10px;
-          padding: 12px 20px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: opacity 0.2s, transform 0.1s;
+          width: 100%; background: #e8ff2a; color: #0d0d0d; border: none; border-radius: 10px;
+          padding: 12px 20px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+          cursor: pointer; transition: opacity 0.2s, transform 0.1s;
         }
         .btn-all-n64:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-all-n64:active { transform: translateY(0); }
-
-        .n64-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 8px;
-        }
+        .n64-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
         .n64-card {
-          background: #161616;
-          border: 1px solid #222;
-          border-radius: 10px;
-          padding: 14px 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.15s, border-color 0.15s;
+          background: #161616; border: 1px solid #222; border-radius: 10px;
+          padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+          gap: 8px; cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
         }
         .n64-card:hover { background: #1e1e1e; border-color: #333; }
         .n64-card-title { font-size: 13px; font-weight: 500; color: #f0f0f0; flex: 1; }
@@ -502,16 +522,9 @@ export default function Home() {
         /* Collectibles */
         .grid-collect { display: flex; flex-direction: column; gap: 8px; }
         .collect-card {
-          background: #161616;
-          border: 1px solid #222;
-          border-radius: 10px;
-          padding: 16px 18px;
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          cursor: pointer;
-          text-align: left;
-          transition: background 0.15s, border-color 0.15s;
+          background: #161616; border: 1px solid #222; border-radius: 10px;
+          padding: 16px 18px; display: flex; align-items: center; gap: 14px;
+          cursor: pointer; text-align: left; transition: background 0.15s, border-color 0.15s;
         }
         .collect-card:hover { background: #1e1e1e; border-color: #333; }
         .cc-emoji { font-size: 22px; flex-shrink: 0; }
@@ -521,17 +534,16 @@ export default function Home() {
         .cc-arrow { color: #555; font-size: 14px; flex-shrink: 0; }
         .collect-card:hover .cc-arrow { color: #aaa; }
 
-        /* Footer */
         .footer { text-align: center; padding: 30px 0 0; font-size: 12px; color: #444; border-top: 1px solid #1a1a1a; margin-top: 40px; }
 
-        /* Mobile tweaks */
         @media (max-width: 600px) {
           .logo-title { font-size: 17px; }
-          .grid-consoles { grid-template-columns: repeat(2, 1fr); }
+          .grid-consoles { grid-template-columns: 1fr; }
           .n64-grid { grid-template-columns: 1fr; }
           .header-inner { flex-direction: column; align-items: flex-start; gap: 12px; }
           .search-wrap { max-width: 100%; width: 100%; }
           .tab { font-size: 13px; padding: 10px 12px; }
+          .ccard-price-row { flex-direction: column; }
         }
       `}</style>
     </>
