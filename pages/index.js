@@ -2,38 +2,80 @@ import Head from 'next/head'
 import { useState } from 'react'
 
 const VINTED = 'https://www.vinted.it/catalog'
+// status_ids: 6 = buone condizioni, 3 = ottime condizioni
 const GOOD_CONDITIONS = '&status_ids[]=3&status_ids[]=6'
 
-// Vinted .it catalog IDs (confirmed from URL structure)
-// 3025 = Consoles, 3026 = Games, all under 3002 = Video games & consoles
-const buildUrl = (search, maxPrice = null, catalog = null) => {
+// Brand IDs confermati da Vinted:
+// 272284 = PlayStation (Sony)
+// 29  = Nintendo
+// 471 = Sega
+// 13148 = Atari
+// catalog 3025 = Consoles, 3026 = Games
+
+const buildUrl = ({ search = '', maxPrice = null, catalog = null, brandId = null } = {}) => {
   let url = `${VINTED}?search_text=${encodeURIComponent(search)}&order=price_low_to_high${GOOD_CONDITIONS}`
   if (maxPrice) url += `&price_to=${maxPrice}`
   if (catalog) url += `&catalog[]=${catalog}`
+  // brand_id filtra per marca — garantisce che escano solo articoli di quella piattaforma
+  if (brandId) url += `&brand_id[]=${brandId}`
   return url
 }
 
+// Per le console usiamo: catalog=3025 (solo Console) + brand_id specifico + search con il
+// nome preciso della generazione (es. "playstation 1" per non mischiare PS2/PS3).
+// Sega Dreamcast non ha brand_id dedicato su Vinted (brand "Dreamcast" è solo merchandise),
+// quindi usiamo brand Sega (471) + search text molto specifico.
 const CONSOLES = [
-  { name: 'PlayStation 1', short: 'PS1', emoji: '🎮', color: '#003087', search: 'console playstation 1 PSX PSOne', catalog: 3025 },
-  { name: 'PlayStation 2', short: 'PS2', emoji: '🎮', color: '#003087', search: 'console playstation 2 PS2 slim fat', catalog: 3025 },
-  { name: 'PlayStation 3', short: 'PS3', emoji: '🎮', color: '#003087', search: 'console playstation 3 PS3', catalog: 3025 },
-  { name: 'PlayStation 4', short: 'PS4', emoji: '🎮', color: '#003087', search: 'console playstation 4 PS4', catalog: 3025 },
-  { name: 'Nintendo Wii', short: 'Wii', emoji: '🕹️', color: '#e4000f', search: 'console nintendo wii', catalog: 3025 },
-  { name: 'GameCube', short: 'GCN', emoji: '🕹️', color: '#e4000f', search: 'console nintendo gamecube', catalog: 3025 },
-  { name: 'Nintendo 64', short: 'N64', emoji: '🕹️', color: '#e4000f', search: 'console nintendo 64 N64', catalog: 3025 },
-  { name: 'Atari 2600', short: 'ATARI', emoji: '👾', color: '#f5a623', search: 'console atari 2600 VCS', catalog: 3025 },
-  { name: 'Sega Dreamcast', short: 'DC', emoji: '💿', color: '#1a1a2e', search: 'console sega dreamcast', catalog: 3025 },
+  {
+    name: 'PlayStation 1', short: 'PS1', emoji: '🎮', color: '#003087',
+    // brand PlayStation + catalog Console + "playstation 1" per filtrare la generazione
+    search: 'playstation 1', catalog: 3025, brandId: 272284
+  },
+  {
+    name: 'PlayStation 2', short: 'PS2', emoji: '🎮', color: '#003087',
+    search: 'playstation 2', catalog: 3025, brandId: 272284
+  },
+  {
+    name: 'PlayStation 3', short: 'PS3', emoji: '🎮', color: '#003087',
+    search: 'playstation 3', catalog: 3025, brandId: 272284
+  },
+  {
+    name: 'PlayStation 4', short: 'PS4', emoji: '🎮', color: '#003087',
+    search: 'playstation 4', catalog: 3025, brandId: 272284
+  },
+  {
+    name: 'Nintendo Wii', short: 'Wii', emoji: '🕹️', color: '#e4000f',
+    search: 'nintendo wii', catalog: 3025, brandId: 29
+  },
+  {
+    name: 'GameCube', short: 'GCN', emoji: '🕹️', color: '#e4000f',
+    search: 'gamecube', catalog: 3025, brandId: 29
+  },
+  {
+    name: 'Nintendo 64', short: 'N64', emoji: '🕹️', color: '#e4000f',
+    search: 'nintendo 64', catalog: 3025, brandId: 29
+  },
+  {
+    name: 'Atari', short: 'ATARI', emoji: '👾', color: '#f5a623',
+    search: 'atari', catalog: 3025, brandId: 13148
+  },
+  {
+    name: 'Sega Dreamcast', short: 'DC', emoji: '💿', color: '#1a1a2e',
+    // Sega brand + "dreamcast" nel testo — il più preciso possibile per questa console
+    search: 'dreamcast', catalog: 3025, brandId: 471
+  },
 ]
 
+// Per i giochi: catalog=3026 (solo Games) + brand_id + search con nome console
 const GAMES_BY_CONSOLE = [
-  { console: 'N64', label: 'Tutti i giochi N64', search: 'gioco nintendo 64 N64 cartuccia', maxPrice: 7, emoji: '🟡' },
-  { console: 'PS1', label: 'Giochi PS1', search: 'gioco playstation 1 PS1 PSX disco', maxPrice: null, emoji: '🔵' },
-  { console: 'PS2', label: 'Giochi PS2', search: 'gioco playstation 2 PS2', maxPrice: null, emoji: '🔵' },
-  { console: 'PS3', label: 'Giochi PS3', search: 'gioco playstation 3 PS3', maxPrice: null, emoji: '🔵' },
-  { console: 'Wii', label: 'Giochi Wii', search: 'gioco nintendo wii disco', maxPrice: null, emoji: '🔴' },
-  { console: 'GCN', label: 'Giochi GameCube', search: 'gioco nintendo gamecube GCN disco', maxPrice: null, emoji: '🔴' },
-  { console: 'DC', label: 'Giochi Dreamcast', search: 'gioco sega dreamcast GD-ROM', maxPrice: null, emoji: '🟣' },
-  { console: 'ATARI', label: 'Giochi Atari', search: 'gioco atari 2600 cartuccia', maxPrice: null, emoji: '🟠' },
+  { console: 'N64', label: 'Tutti i giochi N64', search: 'nintendo 64', maxPrice: 7, emoji: '🟡', catalog: 3026, brandId: 29 },
+  { console: 'PS1', label: 'Giochi PS1', search: 'playstation 1', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
+  { console: 'PS2', label: 'Giochi PS2', search: 'playstation 2', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
+  { console: 'PS3', label: 'Giochi PS3', search: 'playstation 3', maxPrice: null, emoji: '🔵', catalog: 3026, brandId: 272284 },
+  { console: 'Wii', label: 'Giochi Wii', search: 'nintendo wii', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
+  { console: 'GCN', label: 'Giochi GameCube', search: 'gamecube', maxPrice: null, emoji: '🔴', catalog: 3026, brandId: 29 },
+  { console: 'DC', label: 'Giochi Dreamcast', search: 'dreamcast', maxPrice: null, emoji: '🟣', catalog: 3026, brandId: 471 },
+  { console: 'ATARI', label: 'Giochi Atari', search: 'atari', maxPrice: null, emoji: '🟠', catalog: 3026, brandId: 13148 },
 ]
 
 const N64_TITLES = [
@@ -137,7 +179,7 @@ export default function Home() {
                   <button
                     key={c.short}
                     className="console-card"
-                    onClick={() => handleOpen(buildUrl(c.search, null, c.catalog))}
+                    onClick={() => handleOpen(buildUrl({ search: c.search, catalog: c.catalog, brandId: c.brandId }))}
                     style={{ '--accent': c.color }}
                   >
                     <span className="con-emoji">{c.emoji}</span>
@@ -159,7 +201,7 @@ export default function Home() {
                   <button
                     key={g.console}
                     className="game-card"
-                    onClick={() => handleOpen(buildUrl(g.search, g.maxPrice, 3026))}
+                    onClick={() => handleOpen(buildUrl({ search: g.search, maxPrice: g.maxPrice, catalog: g.catalog, brandId: g.brandId }))}
                   >
                     <span className="gc-emoji">{g.emoji}</span>
                     <div className="gc-info">
@@ -201,7 +243,7 @@ export default function Home() {
                 </div>
                 <button
                   className="btn-all-n64"
-                  onClick={() => handleOpen(buildUrl('gioco nintendo 64 N64 cartuccia', n64Max, 3026))}
+                  onClick={() => handleOpen(buildUrl({ search: 'nintendo 64', maxPrice: n64Max, catalog: 3026, brandId: 29 }))}
                 >
                   🔍 Tutti i giochi N64 fino a €{n64Max} →
                 </button>
@@ -212,7 +254,7 @@ export default function Home() {
                   <button
                     key={t.title}
                     className="n64-card"
-                    onClick={() => handleOpen(buildUrl(t.search, n64Max, 3026))}
+                    onClick={() => handleOpen(buildUrl({ search: t.search, maxPrice: n64Max, catalog: 3026, brandId: 29 }))}
                   >
                     <span className="n64-card-title">{t.title}</span>
                     <span className="n64-card-price">≤ €{n64Max}</span>
@@ -232,7 +274,7 @@ export default function Home() {
                   <button
                     key={c.label}
                     className="collect-card"
-                    onClick={() => handleOpen(buildUrl(c.search))}
+                    onClick={() => handleOpen(buildUrl({ search: c.search }))}
                   >
                     <span className="cc-emoji">{c.emoji}</span>
                     <div className="cc-info">
